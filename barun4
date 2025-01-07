@@ -1,0 +1,291 @@
+Q1.Write a C program to create a child process using fork() system call. The child process will
+print the message “Child” with its process identifier and then continue in an indefinite loop.
+The parent process will print the message “Parent” with its process identifier and then
+continue in an indefinite loop.
+a) Run the program and trace the state of both processes.
+b) Terminate the child process. Then trace the state of processes.
+c) Run the program and trace the state of both processes. Terminate the parent process. Then
+trace the state of processes.
+d) Modify the program so that the parent process after displaying the message will wait for
+child process to complete its task. Again run the program and trace the state of both
+processes.
+e) Terminate the child process. Then trace the state of processes
+_____________________________________________________________________________________________________________________________________________________________
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+
+int main() {
+    pid_t pid;
+
+    // Create child process
+    pid = fork();
+
+    if (pid < 0) {
+        // Fork failed
+        perror("Fork failed");
+        exit(1);
+    } else if (pid == 0) {
+        // Child process
+        printf("Child process: PID = %d\n", getpid());
+        while (1) {
+            // Infinite loop for the child process
+        }
+    } else {
+        // Parent process
+        printf("Parent process: PID = %d\n", getpid());
+        
+        // Uncomment the following section for (d):
+        // Wait for the child process to complete
+        // wait(NULL);
+        while (1) {
+            // Infinite loop for the parent process
+        }
+    }
+
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+Q3  Write a C program that will create three child process to perform the following operations
+respectively:
+- First child will copy the content of file1 to file2
+- Second child will display the content of file2
+- Third child will display the sorted content of file2 in reverse order.
+- Each child process being created will display its id and its parent process id with
+appropriate message.
+- The parent process will be delayed for 1 second after creation of each child process. It
+will display appropriate message with its id after completion of all the child
+processes
+_____________________________________________________________________________________________________________________________________________________________________
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <string.h>
+
+void copy_file(const char *src, const char *dest) {
+    FILE *src_file = fopen(src, "r");
+    FILE *dest_file = fopen(dest, "w");
+    if (!src_file || !dest_file) {
+        perror("Error opening files");
+        exit(1);
+    }
+
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), src_file)) {
+        fputs(buffer, dest_file);
+    }
+
+    fclose(src_file);
+    fclose(dest_file);
+}
+
+void display_file(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening file");
+        exit(1);
+    }
+
+    char line[1024];
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+
+    fclose(file);
+}
+
+void display_file_sorted_reverse(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening file");
+        exit(1);
+    }
+
+    char *lines[1024];
+    int count = 0;
+
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), file)) {
+        lines[count] = strdup(buffer);
+        count++;
+    }
+
+    fclose(file);
+
+    // Sort lines
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (strcmp(lines[i], lines[j]) < 0) {
+                char *temp = lines[i];
+                lines[i] = lines[j];
+                lines[j] = temp;
+            }
+        }
+    }
+
+    // Display lines in reverse order
+    for (int i = count - 1; i >= 0; i--) {
+        printf("%s", lines[i]);
+        free(lines[i]);
+    }
+}
+
+int main() {
+    pid_t pid1, pid2, pid3;
+
+    // Create the first child process
+    pid1 = fork();
+    if (pid1 == 0) {
+        printf("First child (PID: %d, Parent PID: %d) is copying file1 to file2\n", getpid(), getppid());
+        copy_file("file1.txt", "file2.txt");
+        exit(0);
+    } else if (pid1 < 0) {
+        perror("Failed to create the first child");
+        exit(1);
+    }
+
+    // Delay parent process
+    sleep(1);
+
+    // Create the second child process
+    pid2 = fork();
+    if (pid2 == 0) {
+        printf("Second child (PID: %d, Parent PID: %d) is displaying the content of file2\n", getpid(), getppid());
+        display_file("file2.txt");
+        exit(0);
+    } else if (pid2 < 0) {
+        perror("Failed to create the second child");
+        exit(1);
+    }
+
+    // Delay parent process
+    sleep(1);
+
+    // Create the third child process
+    pid3 = fork();
+    if (pid3 == 0) {
+        printf("Third child (PID: %d, Parent PID: %d) is displaying the sorted content of file2 in reverse order\n", getpid(), getppid());
+        display_file_sorted_reverse("file2.txt");
+        exit(0);
+    } else if (pid3 < 0) {
+        perror("Failed to create the third child");
+        exit(1);
+    }
+
+    // Delay parent process
+    sleep(1);
+
+    // Parent process waits for all children to finish
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+    waitpid(pid3, NULL, 0);
+
+    printf("Parent process (PID: %d) has completed execution after all child processes.\n", getpid());
+    return 0;
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Q4 Write a C program that will create a child process to generate a Fibonacci series of specified
+length and store it in an array. The parent process will wait for the child to complete its task
+and then display the Fibonacci series and then display the prime Fibonacci number in the
+series along with its position with appropriate message
+__________________________________________________________________________________________________________________________________________________________________________________
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/shm.h>
+#include <stdbool.h>
+
+// Function to check if a number is prime
+bool is_prime(int num) {
+    if (num <= 1) return false;
+    for (int i = 2; i * i <= num; i++) {
+        if (num % i == 0) return false;
+    }
+    return true;
+}
+
+// Function to generate Fibonacci series
+void generate_fibonacci(int *array, int length) {
+    if (length >= 1) array[0] = 0;
+    if (length >= 2) array[1] = 1;
+    for (int i = 2; i < length; i++) {
+        array[i] = array[i - 1] + array[i - 2];
+    }
+}
+
+int main() {
+    int length;
+    printf("Enter the length of the Fibonacci series: ");
+    scanf("%d", &length);
+
+    if (length <= 0) {
+        printf("Invalid length. Please enter a positive number.\n");
+        return 1;
+    }
+
+    // Shared memory setup
+    int shm_id = shmget(IPC_PRIVATE, length * sizeof(int), IPC_CREAT | 0666);
+    if (shm_id < 0) {
+        perror("Shared memory allocation failed");
+        exit(1);
+    }
+
+    int *fib_array = (int *)shmat(shm_id, NULL, 0);
+    if (fib_array == (int *)-1) {
+        perror("Shared memory attachment failed");
+        exit(1);
+    }
+
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(1);
+    } else if (pid == 0) {
+        // Child process: Generate Fibonacci series
+        printf("Child process (PID: %d) is generating the Fibonacci series.\n", getpid());
+        generate_fibonacci(fib_array, length);
+        printf("Child process completed.\n");
+        exit(0);
+    } else {
+        // Parent process: Wait for child to complete
+        wait(NULL);
+        printf("Parent process (PID: %d) received the Fibonacci series.\n", getpid());
+
+        // Display the Fibonacci series
+        printf("Fibonacci series:\n");
+        for (int i = 0; i < length; i++) {
+            printf("%d ", fib_array[i]);
+        }
+        printf("\n");
+
+        // Display prime Fibonacci numbers with their positions
+        printf("Prime Fibonacci numbers:\n");
+        for (int i = 0; i < length; i++) {
+            if (is_prime(fib_array[i])) {
+                printf("Position: %d, Value: %d\n", i, fib_array[i]);
+            }
+        }
+
+        // Detach and clean up shared memory
+        shmdt(fib_array);
+        shmctl(shm_id, IPC_RMID, NULL);
+
+        printf("Parent process completed.\n");
+    }
+
+    return 0;
+}
