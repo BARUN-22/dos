@@ -1,0 +1,307 @@
+1. Producer-Consumer problem
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+#define BUFFER_SIZE 10
+#define ITERATIONS 20
+
+int buffer[BUFFER_SIZE];
+int in = 0, out = 0;
+
+sem_t empty;
+sem_t full;
+pthread_mutex_t mutex;
+
+void* producer(void* arg) {
+    for (int i = 1; i <= ITERATIONS; i++) {
+        sem_wait(&empty); // Wait if buffer is full
+        pthread_mutex_lock(&mutex); // Lock the buffer
+
+        buffer[in] = i;
+        printf("Producer produced: %d\n", i);
+        in = (in + 1) % BUFFER_SIZE;
+
+        pthread_mutex_unlock(&mutex); // Unlock the buffer
+        sem_post(&full); // Signal that buffer has new data
+    }
+    pthread_exit(NULL);
+}
+
+void* consumer(void* arg) {
+    for (int i = 1; i <= ITERATIONS; i++) {
+        sem_wait(&full); // Wait if buffer is empty
+        pthread_mutex_lock(&mutex); // Lock the buffer
+
+        int item = buffer[out];
+        printf("Consumer consumed: %d\n", item);
+        out = (out + 1) % BUFFER_SIZE;
+
+        pthread_mutex_unlock(&mutex); // Unlock the buffer
+        sem_post(&empty); // Signal that buffer has space
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t prod_thread, cons_thread;
+
+    // Initialize semaphores and mutex
+    sem_init(&empty, 0, BUFFER_SIZE); // Buffer starts empty
+    sem_init(&full, 0, 0); // No items initially
+    pthread_mutex_init(&mutex, NULL);
+
+    // Create producer and consumer threads
+    pthread_create(&prod_thread, NULL, producer, NULL);
+    pthread_create(&cons_thread, NULL, consumer, NULL);
+
+    // Wait for threads to finish
+    pthread_join(prod_thread, NULL);
+    pthread_join(cons_thread, NULL);
+
+    // Cleanup resources
+    sem_destroy(&empty);
+    sem_destroy(&full);
+    pthread_mutex_destroy(&mutex);
+
+    return 0;
+}
+
+
+2. Alternating Numbers with Two Threads
+
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+// Define semaphores
+sem_t odd_semaphore;
+sem_t even_semaphore;
+
+// Function for Thread A to print odd numbers
+void* print_odd_numbers(void* arg) {
+    for (int i = 1; i <= 19; i += 2) {
+        sem_wait(&odd_semaphore); // Wait for odd semaphore
+        printf("Thread A: %d\n", i); // Print odd number
+        sem_post(&even_semaphore); // Signal even semaphore
+    }
+    return NULL;
+}
+
+// Function for Thread B to print even numbers
+void* print_even_numbers(void* arg) {
+    for (int i = 2; i <= 20; i += 2) {
+        sem_wait(&even_semaphore); // Wait for even semaphore
+        printf("Thread B: %d\n", i); // Print even number
+        sem_post(&odd_semaphore); // Signal odd semaphore
+    }
+    return NULL;
+}
+
+int main() {
+    // Initialize semaphores
+    sem_init(&odd_semaphore, 0, 1);  // Allow Thread A to start
+    sem_init(&even_semaphore, 0, 0); // Block Thread B initially
+
+    // Create threads
+    pthread_t thread_a, thread_b;
+    pthread_create(&thread_a, NULL, print_odd_numbers, NULL);
+    pthread_create(&thread_b, NULL, print_even_numbers, NULL);
+
+    // Wait for threads to finish
+    pthread_join(thread_a, NULL);
+    pthread_join(thread_b, NULL);
+
+    // Destroy semaphores
+    sem_destroy(&odd_semaphore);
+    sem_destroy(&even_semaphore);
+
+    printf("Finished printing numbers alternately.\n");
+    return 0;
+}
+
+
+
+
+3. Alternating Characters
+
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+// Define semaphores
+sem_t sem_a;
+sem_t sem_b;
+
+// Function for Thread A to print 'A'
+void* print_A(void* arg) {
+    for (int i = 0; i < 10; i++) { // Print 'A' 10 times
+        sem_wait(&sem_a); // Wait for semaphore A
+        printf("A");
+        fflush(stdout); // Ensure immediate output
+        sem_post(&sem_b); // Signal semaphore B
+    }
+    return NULL;
+}
+
+// Function for Thread B to print 'B'
+void* print_B(void* arg) {
+    for (int i = 0; i < 10; i++) { // Print 'B' 10 times
+        sem_wait(&sem_b); // Wait for semaphore B
+        printf("B");
+        fflush(stdout); // Ensure immediate output
+        sem_post(&sem_a); // Signal semaphore A
+    }
+    return NULL;
+}
+
+int main() {
+    // Initialize semaphores
+    sem_init(&sem_a, 0, 1); // Start with A semaphore available
+    sem_init(&sem_b, 0, 0); // Block B semaphore initially
+
+    // Create threads
+    pthread_t thread_a, thread_b;
+    pthread_create(&thread_a, NULL, print_A, NULL);
+    pthread_create(&thread_b, NULL, print_B, NULL);
+
+    // Wait for threads to complete
+    pthread_join(thread_a, NULL);
+    pthread_join(thread_b, NULL);
+
+    // Destroy semaphores
+    sem_destroy(&sem_a);
+    sem_destroy(&sem_b);
+
+    printf("\nFinished printing characters alternately.\n");
+    return 0;
+}
+
+
+
+
+
+4. Countdown and Countup
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+// Define semaphores
+sem_t sem_a; // Controls Thread A
+sem_t sem_b; // Controls Thread B
+
+// Function for Thread A to count down from 10 to 1
+void* countdown(void* arg) {
+    for (int i = 10; i >= 1; i--) {
+        sem_wait(&sem_a); // Wait for semaphore A
+        printf("Thread A: %d\n", i); // Print countdown number
+        sem_post(&sem_b); // Signal semaphore B
+    }
+    return NULL;
+}
+
+// Function for Thread B to count up from 1 to 10
+void* countup(void* arg) {
+    for (int i = 1; i <= 10; i++) {
+        sem_wait(&sem_b); // Wait for semaphore B
+        printf("Thread B: %d\n", i); // Print countup number
+        sem_post(&sem_a); // Signal semaphore A
+    }
+    return NULL;
+}
+
+int main() {
+    // Initialize semaphores
+    sem_init(&sem_a, 0, 1); // Start with Thread A semaphore available
+    sem_init(&sem_b, 0, 0); // Block Thread B semaphore initially
+
+    // Create threads
+    pthread_t thread_a, thread_b;
+    pthread_create(&thread_a, NULL, countdown, NULL);
+    pthread_create(&thread_b, NULL, countup, NULL);
+
+    // Wait for threads to finish
+    pthread_join(thread_a, NULL);
+    pthread_join(thread_b, NULL);
+
+    // Destroy semaphores
+    sem_destroy(&sem_a);
+    sem_destroy(&sem_b);
+
+    printf("Finished counting down and up alternately.\n");
+    return 0;
+}
+
+
+
+5. Sequence Printing using Threads
+
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+// Define semaphores
+sem_t sem_a, sem_b, sem_c;
+
+// Thread A prints A1, A4, A7, ...
+void* print_A(void* arg) {
+    for (int i = 1; i <= 20; i += 3) {
+        sem_wait(&sem_a); // Wait for semaphore A
+        printf("A%d ", i); // Print A and the number
+        sem_post(&sem_b); // Signal semaphore B
+    }
+    return NULL;
+}
+
+// Thread B prints B2, B5, B8, ...
+void* print_B(void* arg) {
+    for (int i = 2; i <= 20; i += 3) {
+        sem_wait(&sem_b); // Wait for semaphore B
+        printf("B%d ", i); // Print B and the number
+        sem_post(&sem_c); // Signal semaphore C
+    }
+    return NULL;
+}
+
+// Thread C prints C3, C6, C9, ...
+void* print_C(void* arg) {
+    for (int i = 3; i <= 20; i += 3) {
+        sem_wait(&sem_c); // Wait for semaphore C
+        printf("C%d ", i); // Print C and the number
+        sem_post(&sem_a); // Signal semaphore A
+    }
+    return NULL;
+}
+
+int main() {
+    // Initialize semaphores
+    sem_init(&sem_a, 0, 1); // Start with Thread A semaphore available
+    sem_init(&sem_b, 0, 0); // Block Thread B initially
+    sem_init(&sem_c, 0, 0); // Block Thread C initially
+
+    // Create threads
+    pthread_t thread_a, thread_b, thread_c;
+    pthread_create(&thread_a, NULL, print_A, NULL);
+    pthread_create(&thread_b, NULL, print_B, NULL);
+    pthread_create(&thread_c, NULL, print_C, NULL);
+
+    // Wait for threads to finish
+    pthread_join(thread_a, NULL);
+    pthread_join(thread_b, NULL);
+    pthread_join(thread_c, NULL);
+
+    // Destroy semaphores
+    sem_destroy(&sem_a);
+    sem_destroy(&sem_b);
+    sem_destroy(&sem_c);
+
+    printf("\nFinished printing sequence.\n");
+    return 0;
+}
+
+
